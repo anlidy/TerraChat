@@ -50,10 +50,15 @@ const globalForDb = globalThis as unknown as {
   _postgresClient?: ReturnType<typeof postgres>;
 };
 
-// biome-ignore lint: Forbidden non-null assertion.
+const postgresUrl = process.env.POSTGRES_URL;
+
+if (!postgresUrl) {
+  throw new Error("POSTGRES_URL is required");
+}
+
 const client =
   globalForDb._postgresClient ??
-  postgres(process.env.POSTGRES_URL!, {
+  postgres(postgresUrl, {
     ssl: process.env.NODE_ENV === "production" ? "require" : "prefer",
     connect_timeout: 60,
     idle_timeout: 30,
