@@ -1,4 +1,5 @@
 import type { InferSelectModel } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   boolean,
   foreignKey,
@@ -13,7 +14,6 @@ import {
   varchar,
   vector,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
 
 export const user = pgTable("User", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
