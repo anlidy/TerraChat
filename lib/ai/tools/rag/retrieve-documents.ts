@@ -1,7 +1,8 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { getDocumentsByChat, similaritySearch } from "@/lib/db/queries";
+import { getDocumentsByChat } from "@/lib/db/queries";
 import { embedText } from "@/lib/rag/embed";
+import { hybridSearch } from "@/lib/rag/hybrid-search";
 
 export const retrieveDocuments = ({ chatId }: { chatId: string }) =>
   tool({
@@ -75,7 +76,7 @@ Examples:
       }
 
       const embedding = await embedText(query);
-      const chunks = await similaritySearch({ chatId, embedding });
+      const chunks = await hybridSearch({ chatId, query, embedding });
       console.log(
         `[RAG Tool] Retrieved ${chunks.length} chunks for query: ${query}`
       );

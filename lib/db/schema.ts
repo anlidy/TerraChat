@@ -2,6 +2,7 @@ import type { InferSelectModel } from "drizzle-orm";
 import {
   boolean,
   foreignKey,
+  index,
   integer,
   json,
   pgTable,
@@ -12,6 +13,7 @@ import {
   varchar,
   vector,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const user = pgTable("User", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
@@ -234,16 +236,26 @@ export const documentResource = pgTable("DocumentResource", {
 
 export type DocumentResource = InferSelectModel<typeof documentResource>;
 
-export const documentChunk = pgTable("DocumentChunk", {
-  id: uuid("id").primaryKey().notNull().defaultRandom(),
-  resourceId: uuid("resourceId")
-    .notNull()
-    .references(() => documentResource.id, { onDelete: "cascade" }),
-  chatId: uuid("chatId").notNull(),
-  content: text("content").notNull(),
-  embedding: vector("embedding", { dimensions: 1024 }),
-  chunkIndex: integer("chunkIndex").notNull(),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-});
+export const documentChunk = pgTable(
+  "DocumentChunk",
+  {
+    id: uuid("id").primaryKey().notNull().defaultRandom(),
+    resourceId: uuid("resourceId")
+      .notNull()
+      .references(() => documentResource.id, { onDelete: "cascade" }),
+    chatId: uuid("chatId").notNull(),
+    content: text("content").notNull(),
+    embedding: vector("embedding", { dimensions: 1024 }),
+    chunkIndex: integer("chunkIndex").notNull(),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+  },
+  (table) => ({
+    // Full-text search index for BM25 (using 'simple' for multilingual support)
+    contentSearchIdx: index("content_search_idx").using(
+      "gin",
+      sql`to_tsvector('simple', ${table.content})`
+    ),
+  })
+);
 
 export type DocumentChunk = InferSelectModel<typeof documentChunk>;

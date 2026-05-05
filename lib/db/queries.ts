@@ -950,3 +950,54 @@ export async function similaritySearch({
     throw new ChatbotError("bad_request:database", error);
   }
 }
+
+/**
+ * BM25 full-text search using PostgreSQL's ts_rank_cd
+ * Uses 'simple' configuration for multilingual support (Chinese + English)
+ */
+export async function bm25Search({
+  chatId,
+  query,
+  limit = 20,
+}: {
+  chatId: string;
+  query: string;
+  limit?: number;
+}) {
+  try {
+    // Convert query to tsquery format
+    const tsQuery = query
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word.length > 0)
+      .join(" & ");
+
+    return await db
+      .select({
+        id: documentChunk.id,
+        content: documentChunk.content,
+        chunkIndex: documentChunk.chunkIndex,
+        fileName: documentResource.fileName,
+        rank: sql<number>`ts_rank_cd(to_tsvector('simple', ${documentChunk.content}), to_tsquery('simple', ${tsQuery}))`,
+      })
+      .from(documentChunk)
+      .innerJoin(
+        documentResource,
+        eq(documentChunk.resourceId, documentResource.id)
+      )
+      .where(
+        and(
+          eq(documentChunk.chatId, chatId),
+          sql`to_tsvector('simple', ${documentChunk.content}) @@ to_tsquery('simple', ${tsQuery})`
+        )
+      )
+      .orderBy(
+        sql`ts_rank_cd(to_tsvector('simple', ${documentChunk.content}), to_tsquery('simple', ${tsQuery})) DESC`
+      )
+      .limit(limit);
+  } catch (error) {
+    console.error("[BM25 Search Error]", error);
+    // Return empty array if query parsing fails
+    return [];
+  }
+}
