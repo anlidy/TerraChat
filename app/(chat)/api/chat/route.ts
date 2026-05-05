@@ -554,6 +554,9 @@ export async function PATCH(request: Request) {
 
     return Response.json({ success: true }, { status: 200 });
   } catch (error) {
+    if (error instanceof ChatbotError) {
+      return error.toResponse();
+    }
     console.error("Error updating chat title:", error);
     return new ChatbotError("offline:chat").toResponse();
   }

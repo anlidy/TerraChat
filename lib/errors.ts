@@ -37,50 +37,88 @@ export const visibilityBySurface: Record<Surface, ErrorVisibility> = {
   rag: "response",
 };
 
+const isDev = process.env.NODE_ENV === "development";
+
+function formatCause(cause: unknown): string | undefined {
+  if (cause === undefined || cause === null) {
+    return undefined;
+  }
+  if (typeof cause === "string") {
+    return cause;
+  }
+  if (cause instanceof Error) {
+    return cause.message;
+  }
+  return String(cause);
+}
+
 export class ChatbotError extends Error {
   type: ErrorType;
   surface: Surface;
   statusCode: number;
 
-  constructor(errorCode: ErrorCode, cause?: string | unknown) {
-    super();
-
+  constructor(errorCode: ErrorCode, cause?: unknown) {
     const [type, surface] = errorCode.split(":");
 
+    const userMessage = getMessageByErrorCode(errorCode);
+    super(userMessage);
+
     this.type = type as ErrorType;
-    this.cause = cause;
     this.surface = surface as Surface;
-    this.message = getMessageByErrorCode(errorCode);
     this.statusCode = getStatusCodeByType(this.type);
+    this.cause = cause;
   }
 
   toResponse() {
     const code: ErrorCode = `${this.type}:${this.surface}`;
     const visibility = visibilityBySurface[this.surface];
-
-    const { message, cause, statusCode } = this;
+    const causeMessage = formatCause(this.cause);
 
     if (visibility === "log") {
       console.error({
         code,
-        message,
+        message: this.message,
         cause:
-          cause instanceof Error
-            ? { name: cause.name, message: cause.message, stack: cause.stack }
-            : cause,
+          this.cause instanceof Error
+            ? {
+                name: this.cause.name,
+                message: this.cause.message,
+                stack: this.cause.stack,
+              }
+            : this.cause,
       });
+
+      if (isDev) {
+        return Response.json(
+          { code, message: this.message, cause: causeMessage },
+          { status: this.statusCode }
+        );
+      }
 
       return Response.json(
         { code: "", message: "Something went wrong. Please try again later." },
-        { status: statusCode }
+        { status: this.statusCode }
       );
     }
 
-    return Response.json({ code, message, cause }, { status: statusCode });
+    const payload: Record<string, unknown> = {
+      code,
+      message: this.message,
+      cause: causeMessage,
+    };
+
+    if (isDev && this.cause instanceof Error) {
+      payload.stack = this.cause.stack;
+    }
+
+    return Response.json(payload, { status: this.statusCode });
   }
 }
 
 export function getMessageByErrorCode(errorCode: ErrorCode): string {
+  if (errorCode === "not_found:database") {
+    return "The requested record was not found in the database.";
+  }
   if (errorCode.includes("database")) {
     return "An error occurred while executing a database query.";
   }
