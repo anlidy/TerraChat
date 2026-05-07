@@ -269,13 +269,13 @@ const DocumentContent = ({ document }: { document: Document }) => {
       {document.kind === "text" ? (
         <Editor {...commonProps} onSaveContent={handleSaveContent} />
       ) : document.kind === "code" ? (
-        <div className="relative flex w-full flex-1">
+        <div className="relative h-full w-full">
           <div className="absolute inset-0">
             <CodeEditor {...commonProps} onSaveContent={handleSaveContent} />
           </div>
         </div>
       ) : document.kind === "sheet" ? (
-        <div className="relative flex size-full flex-1 p-4">
+        <div className="relative h-full w-full p-4">
           <div className="absolute inset-0">
             <SpreadsheetEditor {...commonProps} />
           </div>
